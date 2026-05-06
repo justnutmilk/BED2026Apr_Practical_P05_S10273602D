@@ -1,0 +1,9 @@
+A REST API is an architectural style that uses standard HTTP methods for stateless communication to perform CRUD operations on resources.
+
+Mapping HTTP methods (GET, POST, PUT, DELETE) to the respective CRUD operation.
+
+Yes, the Express Library was quite challenging to learn, but through discussion with my friends and conversations with AI, I am picking it up.
+
+3a. PUT is idempotent, sending the same PUT request produces the same result whether executed once, or multiple times. POST is not; sending it 10 times will create 10 duplicate entries.
+
+3b. 404.

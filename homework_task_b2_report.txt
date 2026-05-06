@@ -1,0 +1,27 @@
+app.use(express.json()) ->  is a built-in middleware function that allows your application to parse incoming requests with JSON payloads.
+
+req.body -> Contains the parsed JSON data sent by the client in the request body. req.body gives us the name and calories the client sent.
+
+req.query -> Allows you to access the query parameters from the URL of an incoming HTTP request. In GET /foods?name=Apple, req.query.name returns "Apple" to filter results.
+
+req.params.id -> Access named route parameters, defined with :id, from the URL path. In PUT /foods/:id and DELETE /foods/:id, it identifies the specific food to update or delete.
+
+GET reads data. In GET /foods?name=Banana, the client requests foods with a matching name, and the server returns any matches found.
+
+POST creates data. In POST /foods, the client sends food data (name and calories) in the request body, and the server adds it to the collection.
+
+PUT updates data. In PUT /foods/:id, the client sends updated food data along with the ID of the food they want to change. The server finds the food with that ID and updates it accordingly.
+
+DELETE removes data. In DELETE /foods/:id, the client specifies the ID of the food to remove, and the server deletes it from the collection.
+
+Using distinct methods gives the API a clear, predictable structure.
+
+200 OK successful response status code indicates that a request has succeeded.
+
+201 Created successful response status code indicates that the HTTP request has led to the creation of a resource.
+
+400 Bad Request client error response status code indicates that the server would not process the request due to something the server considered to be a client error.
+
+404 Not Found client error response status code indicates that the server cannot find the requested resource.
+
+500 Internal Server Error server error response status code indicates that the server encountered an unexpected condition that prevented it from fulfilling the request.
