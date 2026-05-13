@@ -1,0 +1,18 @@
+Look at the code in the final app.js file (where all logic is in routes and no validation). How easy or difficult is it to read and understand what's happening in each route handler compared to when the database logic was in separate functions?:
+
+The code was difficult to read because all the logic — database connection, 
+query execution, error handling, and response formatting — is packed into each 
+route handler. This makes the routes very long and hard to follow at a glance.
+
+If you found a bug in how books are created in the database, which version of app.js would make it easiest to isolate and fix that bug?:
+
+It would be much easier to find and fix a bug if the database logic was separated 
+into its own functions. The current code has every route handler follows the same long skeleton 
+of connecting, querying, and closing, so it's hard to quickly locate the specific part 
+that's causing an issue.
+
+Did you face any challenges while implementing this practical?:
+
+I faced some challenges with environment configuration, such as configuring SQL Server 
+authentication settings for the application login; setting up the database connection 
+required careful attention to the credentials and server configuration.
