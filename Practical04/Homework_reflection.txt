@@ -1,0 +1,122 @@
+## Practical 04: Part B - Homework
+
+### Task 1: Reflection on Refactoring
+
+Reflect on the process of refactoring the API code into the MVC structure by answering the following questions:
+
+1.  What were the main changes you made to refactor the code into MVC architecture? Describe how you moved code between files and folders.
+
+I reorganized the monolithic Books API by creating a clear folder structure:
+- Models (`models/bookModel.js`): Extracted all database operations (SQL queries, connection management, data retrieval) into separate functions like `getAllBooks()`, `getBookById()`, and `createBook()`.
+- Controllers (`controllers/bookController.js`): Moved request/response handling logic here. Each controller function receives the HTTP request, calls the appropriate model function, and sends back the response.
+- Middlewares (`middlewares/bookValidation.js`): Created validation middleware using Joi to validate input data before it reaches the controller.
+- Routes (`app.js`): Set up route definitions with middleware chains, keeping app.js focused only on routing and server initialization.
+- Database Configuration (`dbConfig.js`): Separated database connection configuration from business logic.
+
+This separation means code went from being mixed in one file to being organised by responsibility.
+
+2.  What challenges did you face during the refactoring process?
+
+The main challenges included:
+- Understanding how to properly pass data between layers (ensuring models return data the controller expects)
+- Managing database connections correctly across files, especially ensuring connections are closed in finally blocks
+- Setting up proper error handling at each layer so errors propagate correctly from model → controller → response
+- Organizing middleware chains correctly to validate data before the controller processes it
+- Learning Joi syntax and validation schema structure to properly validate incoming data
+
+3.  How does the MVC structure change the way you think about adding new features or modifying existing ones compared to the previous non-MVC structure?
+
+With MVC, adding new features becomes more systematic:
+- Before: Adding a new endpoint meant adding logic directly to app.js, mixing routing, validation, database queries, and response handling all in one place, making the file grow chaotic.
+- After: Now I think about each layer separately. For a new feature, I ask: "What database operations do I need?" (model), "How should I handle the request?" (controller), "What validation is needed?" (middleware). This creates a clear checklist and prevents "spaghetti code." It's also easier to locate bugs since I know exactly which layer they're in.
+
+4.  In what specific ways do you think the MVC version is more organized or easier to understand and maintain than the previous version where all logic was in `app.js`?
+
+The MVC version is significantly better because:
+- Single Responsibility: Each file has one clear purpose, making it easier to understand.
+- Reusability: A model function like `getBookById()` can be reused by multiple controllers or endpoints without duplication.
+- Testability: Each layer can be tested independently (test the model without involving HTTP, test the controller logic without the database).
+- Navigation: A developer looking for database logic knows to check the model, not hunt through hundreds of lines in app.js.
+- Scaling: Adding new books endpoints (PUT, DELETE) requires minimal changes—just add a model function and controller function, then wire it in app.js.
+- Debugging: When something breaks, I can isolate the issue: Is it a database problem? Check the model. Is it a validation issue? Check middleware. Is it a response format problem? Check the controller.
+
+5.  Explain how separating concerns (putting database logic in the Model and request handling in the Controller) makes the code better from a development perspective.
+
+Separation of concerns is powerful because:
+- Maintainability: If I need to change how books are fetched from the database, I only modify the model. The controller doesn't care how data is retrieved, only that it gets a result. This means changes are isolated and less likely to break other parts.
+- Flexibility: If the company switches from MSSQL to PostgreSQL, I only need to update the model queries. All controllers and routes remain unchanged.
+- Clarity: The controller can focus on HTTP concerns (status codes, response format), and the model focuses on data concerns (SQL, connection pooling). Each layer has fewer responsibilities, making code easier to read.
+- Team Collaboration: Different developers can work on different layers simultaneously without stepping on each other's toes.
+- Testing: I can mock the model in controller tests, or test the model independently without worrying about HTTP. This makes unit testing much simpler and faster.
+
+Task 2: Reflecting on Robustness & Security
+
+Reflect on the impact of validation, error handling, and parameterized queries by answering the following questions:
+
+1.  How does implementing input validation middleware make the API more reliable and user-friendly? Provide an example of invalid input that your validation would now handle.
+
+Input validation middleware acts as a gatekeeper, catching bad data before it causes problems:
+- Reliability: Invalid data is rejected early with clear feedback instead of causing database errors or unexpected behavior. The system doesn't try to process nonsense.
+- User-Friendly: Users get clear error messages explaining what's wrong, not cryptic database errors.
+- Example: My bookValidation middleware requires that `title` be a string between 1-50 characters. If a user sends:
+  - `POST /books` with `{"title": "", "author": "Smith"}` → Rejected with "Title cannot be empty"
+  - `POST /books` with `{"title": 12345, "author": "Smith"}` → Rejected with "Title must be a string"
+  - `POST /books` with `{"author": "Smith"}` → Rejected with "Title is required"
+  Without validation, these requests would either create garbage data or produce unhelpful error messages from the database layer.
+
+2.  Explain in your own words how parameterized queries prevent SQL injection attacks. Why is this approach fundamentally more secure than building SQL query strings by concatenating variable data?
+
+- With parameterized queries, the SQL command and the data are sent separately to the database. The database driver knows exactly where the data goes, treating it as pure data, not executable code.
+- Example (Safe with parameters): In `bookModel.js`, I write:
+  ```javascript
+  const query = "SELECT id, title, author FROM Books WHERE id = @id";
+  request.input("id", id);
+  ```
+  Here, the `@id` placeholder tells the database "a value goes here," and `request.input()` sends the actual value separately. The database never interprets the data as SQL code.
+
+- Example (Unsafe concatenation): If I wrote:
+  ```javascript
+  const query = `SELECT id, title, author FROM Books WHERE id = ${id}`;
+  ```
+  And a malicious user passes `id = "1 OR 1=1"`, the actual query becomes:
+  ```sql
+  SELECT id, title, author FROM Books WHERE id = 1 OR 1=1
+  ```
+  This returns all books, not just one, because `1=1` is always true. With a more sophisticated attack, an attacker could delete data, extract sensitive information, or modify the database.
+
+- Why parameterized is fundamentally safer: The database driver has a strict protocol: "This part is the command, this part is the data." There's no ambiguity. Even if the user passes `"1 OR 1=1"`, it's treated as the literal string "1 OR 1=1", not as SQL logic.
+
+3.  Consider a potential security risk for an API (other than SQL injection, e.g., brute-force attacks, exposing sensitive data in responses). How might robust error handling (like not showing detailed error messages to the client) help mitigate such a risk?
+
+One security risk is exposing sensitive information in error responses:
+- The Problem: If my API crashes and returns a detailed error like `"Error: Connection failed to 192.168.1.5:1433 - Invalid credentials for user 'api_admin'"`, an attacker learns the database server IP, port, and username. This is valuable reconnaissance.
+- Example: In my `bookModel.js`, if I didn't have proper error handling and an attacker sent malformed requests, they might see internal stack traces revealing file paths, database structure, or library versions—all useful for planning attacks.
+- The Solution: My current error handling returns generic messages to the client:
+  ```javascript
+  catch (error) {
+    console.error("Database error:", error);  // Log the real error internally
+    throw error;  // Send generic response through controller
+  }
+  ```
+  The controller then sends back:
+  ```javascript
+  res.status(500).json({ error: "Error retrieving books" });
+  ```
+- Why this helps: An attacker sees a generic message and learns nothing about the system's internals. Meanwhile, detailed errors are logged internally where the development team can see and act on them. This principle is called **fail securely**—when something breaks, don't accidentally leak information.
+
+Task 3: Applying Concepts
+
+- **Apply to Students API:** Take the Students API you built for the homework in the previous practical (Part B, Task 2). Refactor this Students API to follow the MVC architecture, implement input validation for creating/updating students, add general error handling, and ensure all database queries use parameterized queries. Your refactored Students API project should have:
+
+### Submission:
+
+Submit your answers to the reflection and exploration tasks. Ensure your answers are clear and directly address the questions asked.
+
+- Create a text file `Homework_reflection.txt` answering the reflection questions (Tasks 1 & 2).
+- Commit and push your refactored code for both Books API and Students API (Task 3) to your BED Practicals **Github repository**.
+
+### Pro-tip:
+
+Always consult your tutor or classmates when in doubt. Pair programming or discussing challenges can be very helpful!
+
+#### End of Homework
